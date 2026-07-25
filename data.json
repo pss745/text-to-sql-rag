@@ -1,0 +1,83 @@
+{
+  "tables": [
+    {
+      "name": "servicing_db.portfolio.loans",
+      "description": "The core master table for active and historical loans under servicing management, tracking original balances, interest rates, days past due, and current lifecycle statuses.",
+      "columns": "loan_id (VARCHAR, PK): Unique identifier for the mortgage loan. | borrower_id (VARCHAR, FK -> servicing_db.servicing.borrowers.borrower_id): ID of the primary borrower. | original_principal_balance (NUMBER(15,2)): Initial loan amount funded at origination. | unpaid_principal_balance (NUMBER(15,2)): Current outstanding principal balance (UPB). | interest_rate (NUMBER(5,4)): Current interest rate percentage (e.g., 0.0650 for 6.5%). | days_past_due (NUMBER): Days delinquent (0 if up to date). | status (VARCHAR): Loan lifecycle status, one of 'ACTIVE', 'DELINQUENT', 'FORBEARANCE', 'PAID_OFF', 'FORECLOSURE'."
+    },
+    {
+      "name": "servicing_db.servicing.borrowers",
+      "description": "Stores personal and contact information for primary borrowers and co-borrowers associated with serviced loans.",
+      "columns": "borrower_id (VARCHAR, PK): Unique identifier for the borrower. | first_name (VARCHAR): Borrower's given name. | last_name (VARCHAR): Borrower's family name. | email (VARCHAR): Primary contact email address. | phone_number (VARCHAR): Primary contact phone number. | credit_score (NUMBER): FICO score on record."
+    },
+    {
+      "name": "servicing_db.servicing.payments",
+      "description": "Records scheduled versus actual monthly payments made by borrowers, broken down into principal, interest, tax, and insurance components.",
+      "columns": "payment_id (VARCHAR, PK): Unique payment transaction ID. | loan_id (VARCHAR, FK -> servicing_db.portfolio.loans.loan_id): Serviced loan ID. | payment_date (DATE): Date payment was received and posted. | principal_amount (NUMBER(15,2)): Amount applied toward reducing loan principal balance. | interest_amount (NUMBER(15,2)): Amount applied toward interest charges. | escrow_amount (NUMBER(15,2)): Amount deposited into escrow for taxes and insurance. | payment_status (VARCHAR): One of 'ON_TIME', 'LATE', 'PARTIAL'."
+    },
+    {
+      "name": "servicing_db.servicing.escrow_accounts",
+      "description": "Tracks property tax and hazard insurance disbursements, account balances, and annual escrow shortage analyses.",
+      "columns": "escrow_id (VARCHAR, PK): Unique escrow account record ID. | loan_id (VARCHAR, FK -> servicing_db.portfolio.loans.loan_id): Serviced loan ID. | current_balance (NUMBER(15,2)): Current cash balance held in the escrow account. | required_min_balance (NUMBER(15,2)): Minimum required balance to prevent shortage. | annual_tax_disbursement (NUMBER(15,2)): Estimated annual property tax payments. | annual_insurance_disbursement (NUMBER(15,2)): Estimated annual hazard insurance premiums."
+    },
+    {
+      "name": "servicing_db.servicing.default_collections",
+      "description": "Logs delinquent accounts, days past due, default mitigation steps taken (like forbearance or modification), and foreclosure tracking.",
+      "columns": "collection_id (VARCHAR, PK): Unique collection tracking record ID. | loan_id (VARCHAR, FK -> servicing_db.portfolio.loans.loan_id): Serviced loan ID. | days_past_due (NUMBER): Total consecutive days the payment is past due. | stage (VARCHAR): One of 'EARLY_COLLECTIONS', 'LOSS_MITIGATION', 'FORECLOSURE', 'RECOVERED'. | last_contact_date (DATE): Date of last recorded outreach with the borrower."
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Active Loan Portfolio",
+      "definition": "Any serviced loan that is currently generating or expected to generate payments.",
+      "sql_logic": "loans.status IN ('ACTIVE', 'DELINQUENT', 'FORBEARANCE')"
+    },
+    {
+      "term": "Total Monthly Payment (PITI)",
+      "definition": "The complete regular payment collected from a borrower, comprising Principal, Interest, Taxes, and Insurance.",
+      "sql_logic": "payments.principal_amount + payments.interest_amount + payments.escrow_amount"
+    },
+    {
+      "term": "Delinquent Loan",
+      "definition": "A loan where the borrower has missed a payment and is behind schedule.",
+      "sql_logic": "loans.days_past_due > 0 or default_collections.days_past_due >= 30"
+    },
+    {
+      "term": "Seriously Delinquent (DQ 90+)",
+      "definition": "A critical servicing threshold where a loan is 90 or more days past due, often triggering default management or legal proceedings.",
+      "sql_logic": "default_collections.days_past_due >= 90"
+    },
+    {
+      "term": "Escrow Shortage",
+      "definition": "Occurs when the funds collected in a borrower's escrow account are insufficient to cover annual property tax or homeowners insurance disbursements.",
+      "sql_logic": "escrow_accounts.current_balance < escrow_accounts.required_min_balance"
+    },
+    {
+      "term": "Loss Mitigation",
+      "definition": "Programs designed to help delinquent borrowers avoid foreclosure (e.g., forbearance, payment plans, loan modifications).",
+      "sql_logic": "default_collections.stage = 'LOSS_MITIGATION'"
+    }
+  ],
+  "examples": [
+    {
+      "question": "What is our overall 30+ day delinquency rate across the active loan portfolio?",
+      "sql": "SELECT COUNT(CASE WHEN l.days_past_due >= 30 THEN 1 END) AS delinquent_loans_count, COUNT(l.loan_id) AS total_active_loans, ROUND((COUNT(CASE WHEN l.days_past_due >= 30 THEN 1 END)::NUMERIC / NULLIF(COUNT(l.loan_id), 0)) * 100, 2) AS delinquency_rate_percentage FROM servicing_db.portfolio.loans l WHERE l.status IN ('ACTIVE', 'DELINQUENT', 'FORBEARANCE');"
+    },
+    {
+      "question": "List all loans that currently have an escrow shortage along with their current balance.",
+      "sql": "SELECT e.loan_id, e.current_balance AS escrow_balance, e.required_min_balance, (e.required_min_balance - e.current_balance) AS shortage_amount FROM servicing_db.servicing.escrow_accounts e JOIN servicing_db.portfolio.loans l ON e.loan_id = l.loan_id WHERE l.status IN ('ACTIVE', 'DELINQUENT') AND e.current_balance < e.required_min_balance ORDER BY shortage_amount DESC;"
+    },
+    {
+      "question": "How much principal, interest, and escrow did we collect last month?",
+      "sql": "SELECT SUM(p.principal_amount) AS total_principal_collected, SUM(p.interest_amount) AS total_interest_collected, SUM(p.escrow_amount) AS total_escrow_collected, SUM(p.principal_amount + p.interest_amount + p.escrow_amount) AS total_piti_collected FROM servicing_db.servicing.payments p WHERE p.payment_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND p.payment_date < DATE_TRUNC('month', CURRENT_DATE);"
+    },
+    {
+      "question": "Find borrowers who are 90+ days past due and show their current loss mitigation stage.",
+      "sql": "SELECT b.borrower_id, b.first_name, b.last_name, l.loan_id, dc.days_past_due, dc.stage AS loss_mitigation_stage FROM servicing_db.servicing.default_collections dc JOIN servicing_db.portfolio.loans l ON dc.loan_id = l.loan_id JOIN servicing_db.servicing.borrowers b ON l.borrower_id = b.borrower_id WHERE dc.days_past_due >= 90 AND l.status != 'PAID_OFF' ORDER BY dc.days_past_due DESC;"
+    },
+    {
+      "question": "What are the top 5 loans by highest unpaid principal balance?",
+      "sql": "SELECT l.loan_id, CONCAT(b.first_name, ' ', b.last_name) AS borrower_name, l.unpaid_principal_balance, l.interest_rate, l.status FROM servicing_db.portfolio.loans l JOIN servicing_db.servicing.borrowers b ON l.borrower_id = b.borrower_id WHERE l.status IN ('ACTIVE', 'DELINQUENT', 'FORBEARANCE') ORDER BY l.unpaid_principal_balance DESC LIMIT 5;"
+    }
+  ]
+}

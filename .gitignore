@@ -1,0 +1,11 @@
+# secrets
+.env
+
+# local vector database (regenerate with: python ingest.py)
+chroma_db/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
