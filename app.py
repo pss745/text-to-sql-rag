@@ -1,6 +1,7 @@
 import streamlit as st
 
 from query import generate_sql
+from logger import log_query
 
 st.title("Text-to-SQL")
 
@@ -10,3 +11,4 @@ if st.button("Generate SQL") and question:
     with st.spinner("Generating SQL..."):
         sql = generate_sql(question)
     st.code(sql, language="sql")
+    log_query(question, sql)
