@@ -23,7 +23,7 @@ A vector space is a set of vectors that can be played with each other. You can a
 A vector dimension , this is  a way to describe how many directions something is measured.
 Ex: Both Latitude and Longitude is required to locate a point/place on the sphere.
 
-References: 
+## References: 
 https://learn.microsoft.com/en-us/data-engineering/playbook/solutions/vector-database/
 https://www.couchbase.com/blog/embedding-models/
 
