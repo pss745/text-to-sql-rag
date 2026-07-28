@@ -14,7 +14,7 @@ Response : The final response integrates model’s internal  knowledge and retri
 
 Embedding Models: Embedding models are a type of ML models to represent data (text, images, etc) in a continuous low dimensional vector space. These embeddings  capture semantic  meanings between pieces of data enabling machines to perform tasks like, comparison more effectively.
 Ex: Apple can be[1,2,3] and a Banana can be [1,2,5], these embeddings can be used to compare fruits or group similar fruits.
-Ref: https://www.couchbase.com/blog/embedding-models/
+
 
 Vector DB’s: Imagine a Point A which connects to Point B, this arrow is what you need to carry point A to point B. Vector is like an arrow. This arrow will have both distance and direction.
 
@@ -22,5 +22,8 @@ A vector space is a set of vectors that can be played with each other. You can a
 
 A vector dimension , this is  a way to describe how many directions something is measured.
 Ex: Both Latitude and Longitude is required to locate a point/place on the sphere.
-Ref: https://learn.microsoft.com/en-us/data-engineering/playbook/solutions/vector-database/
+
+References: 
+https://learn.microsoft.com/en-us/data-engineering/playbook/solutions/vector-database/
+https://www.couchbase.com/blog/embedding-models/
 
