@@ -12,3 +12,8 @@ Solution: Retrieval-Augmented Generation (RAG). Instead of asking the LLM to kno
 
 ## 2. Architecture
 
+## Some of my Questions in the process:
+
+Why cant we do this - json - > list[dict] -> embeddings directly, why do we need to convert that into text again?
+
+That is a fundamental question! The short answer is: Embedding models (like Gemini) only understand plain, continuous text—they don't understand programming data structures like Python dictionaries or JSON objects.
